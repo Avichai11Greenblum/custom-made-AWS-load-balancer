@@ -1,0 +1,21 @@
+services:
+  backend1:
+    build: ./backend
+    environment:
+      BACKEND_NAME: backend1
+    ports:
+      - "8001:8000"
+
+  backend2:
+    build: ./backend
+    environment:
+      BACKEND_NAME: backend2
+    ports:
+      - "8002:8000"
+
+  backend3:
+    build: ./backend
+    environment:
+      BACKEND_NAME: backend3
+    ports:
+      - "8003:8000"
