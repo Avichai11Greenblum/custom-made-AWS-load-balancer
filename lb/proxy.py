@@ -1,14 +1,12 @@
 import asyncio
-import itertools
 
 import aiohttp
 from aiohttp import web
 
-BACKENDS = [
-    "http://localhost:8001",
-    "http://localhost:8002",
-    "http://localhost:8003",
-]
+from lb import config
+from lb.choose_servers_algos.base import ServerStrategy
+from lb.backend_server import BackendServer
+from lb.factory import create_server_strategy
 
 # Headers that describe a single connection, not the message.
 # A proxy must not forward them (RFC 7230 section 6.1).
@@ -24,8 +22,6 @@ HOP_BY_HOP = {
     "upgrade",
 }
 
-_round_robin_backend = itertools.cycle(BACKENDS)
-
 
 def forward_headers_without_irrelevant(request: web.Request) -> dict[str, str]:
     headers = {
@@ -40,10 +36,13 @@ def forward_headers_without_irrelevant(request: web.Request) -> dict[str, str]:
 
 
 async def proxy(request: web.Request) -> web.StreamResponse:
-    server_to_send = next(_round_robin_backend)
-    url = server_to_send + request.path_qs
+    strategy: ServerStrategy =request.app["strategies"]
+    server = strategy.choose_server(request.app["backends"], request.remote or "")
+    server_url = server.url
+    url = server_url + request.path_qs
     session: aiohttp.ClientSession = request.app["session"]
 
+    server.active_connections += 1
     try:
         async with session.request(
             request.method,
@@ -62,9 +61,11 @@ async def proxy(request: web.Request) -> web.StreamResponse:
             await response.write_eof()
             return response
     except aiohttp.ClientConnectionError:
-        return web.Response(status=502, text=f"Bad gateway: cannot reach {server_to_send}\n")
+        return web.Response(status=502, text=f"Bad gateway: cannot reach {server_url}\n")
     except asyncio.TimeoutError:
-        return web.Response(status=504, text=f"Gateway timeout: {server_to_send}\n")
+        return web.Response(status=504, text=f"Gateway timeout: {server_url}\n")
+    finally:
+        server.active_connections -= 1
 
 
 async def client_session(app: web.Application):
@@ -76,12 +77,17 @@ async def client_session(app: web.Application):
         yield
 
 
-def create_app() -> web.Application:
+def create_app(backends: list[BackendServer], strategies: ServerStrategy) -> web.Application:
     app = web.Application()
+    app["backends"] = backends
+    app["strategies"] = strategies
     app.cleanup_ctx.append(client_session)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app
 
 
 if __name__ == "__main__":
-    web.run_app(create_app(), port=8080)
+    web.run_app(
+        create_app(config.BACKENDS, create_server_strategy(config.ALGORITHM)),
+        port=config.PORT,
+    )
