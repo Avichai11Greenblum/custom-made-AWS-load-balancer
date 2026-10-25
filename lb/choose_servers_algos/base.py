@@ -8,7 +8,7 @@ class ServerStrategy(ABC):
     """Strategy interface: decides which backend serves the next request."""
 
     @abstractmethod
-    def choose(self, backends: Sequence[BackendServer], client_ip: str) -> BackendServer:
+    def choose_server(self, backends: Sequence[BackendServer], client_ip: str) -> BackendServer:
         """Pick the backend that should handle the next request.
 
         Args:
