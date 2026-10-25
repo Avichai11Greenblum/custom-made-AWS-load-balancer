@@ -36,7 +36,7 @@ def forward_headers_without_irrelevant(request: web.Request) -> dict[str, str]:
 
 
 async def proxy(request: web.Request) -> web.StreamResponse:
-    strategy: ServerStrategy =request.app["algorithm"]
+    strategy: ServerStrategy =request.app["strategies"]
     server = strategy.choose_server(request.app["backends"], request.remote or "")
     server_url = server.url
     url = server_url + request.path_qs
