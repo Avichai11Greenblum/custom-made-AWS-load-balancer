@@ -21,10 +21,14 @@ load-balancer/
   backend/                  # tiny FastAPI app: /, /health, /slow, returns its own hostname
     Dockerfile
   lb/
-    app.py                  # proxy entrypoint
-    algorithms/             # Strategy: round_robin, weighted, least_connections, ip_hash
-    health.py               # active health checker (background task)
-    events.py               # Observer: backend_up/down -> subscribers
+    proxy.py                # proxy entrypoint
+    backend_server.py       # BackendServer dataclass
+    choose_servers_algos/   # Strategy: round_robin, weighted, least_connections, ip_hash
+    health_checker.py             # active health checker (background task)
+    observers/              # Observer pattern
+      health_events.py           # event publisher + BackendUp/BackendDown events
+      event_listener.py     # EventListener base class (one subclass per reaction)
+      listeners.py          # concrete listeners (logging for now)
     registry.py             # backend pool (Singleton/Registry)
     factory.py              # builds algorithm from config
     middleware.py           # Decorator/chain: logging, timing, retry
@@ -60,4 +64,11 @@ load-balancer/
 - Stage 7: `aws --endpoint-url=http://localhost:4566 cloudwatch list-metrics` shows custom metrics.
 
 ## Status
-- [ ] Stage 1 ... [ ] Stage 8 (nothing started)
+- [x] Stage 1: backends + compose
+- [x] Stage 2: minimal proxy (aiohttp, `lb/proxy.py`)
+- [x] Stage 3: Strategy + Factory, tests, CI
+- [ ] Stage 4: health checks + Observer (written, needs verification)
+- [ ] Stage 5: resilience
+- [ ] Stage 6: dynamic pool
+- [ ] Stage 7: AWS via LocalStack
+- [ ] Stage 8: load test + compare

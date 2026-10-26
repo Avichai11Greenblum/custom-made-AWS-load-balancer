@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import aiohttp
 from aiohttp import web
@@ -6,7 +7,10 @@ from aiohttp import web
 from lb import config
 from lb.choose_servers_algos.base import ServerStrategy
 from lb.backend_server import BackendServer
+from lb.observers.health_events import EventPublisher
 from lb.factory import create_server_strategy
+from lb.health_checker import health_check_context
+from lb.observers.listeners import register_default_listeners
 
 # Headers that describe a single connection, not the message.
 # A proxy must not forward them (RFC 7230 section 6.1).
@@ -36,8 +40,11 @@ def forward_headers_without_irrelevant(request: web.Request) -> dict[str, str]:
 
 
 async def proxy(request: web.Request) -> web.StreamResponse:
-    strategy: ServerStrategy =request.app["strategies"]
-    server = strategy.choose_server(request.app["backends"], request.remote or "")
+    healthy_backends = [b for b in request.app["backends"] if b.healthy]
+    if not healthy_backends:
+        return web.Response(status=503, text="Service unavailable: no healthy backends\n")
+    strategy: ServerStrategy = request.app["strategies"]
+    server = strategy.choose_server(healthy_backends, request.remote or "")
     server_url = server.url
     url = server_url + request.path_qs
     session: aiohttp.ClientSession = request.app["session"]
@@ -77,17 +84,24 @@ async def client_session(app: web.Application):
         yield
 
 
-def create_app(backends: list[BackendServer], strategies: ServerStrategy) -> web.Application:
+def create_app(
+    backends: list[BackendServer], strategies: ServerStrategy, event_publisher: EventPublisher
+) -> web.Application:
     app = web.Application()
     app["backends"] = backends
     app["strategies"] = strategies
+    app["event_publisher"] = event_publisher
     app.cleanup_ctx.append(client_session)
+    app.cleanup_ctx.append(health_check_context)  # needs app["session"], so it comes second
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    event_publisher = EventPublisher()
+    register_default_listeners(event_publisher)
     web.run_app(
-        create_app(config.BACKENDS, create_server_strategy(config.ALGORITHM)),
+        create_app(config.BACKENDS, create_server_strategy(config.ALGORITHM), event_publisher),
         port=config.PORT,
     )
