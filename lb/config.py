@@ -17,3 +17,9 @@ def parse_backends(raw: str) -> list[BackendServer]:
 BACKENDS = parse_backends(os.getenv("LB_BACKENDS", DEFAULT_BACKENDS))
 ALGORITHM = os.getenv("LB_ALGORITHM", "round_robin")
 PORT = int(os.getenv("LB_PORT", "8080"))
+
+HEALTH_INTERVAL = float(os.getenv("LB_HEALTH_INTERVAL", "2"))  # seconds between rounds
+HEALTH_TIMEOUT = float(os.getenv("LB_HEALTH_TIMEOUT", "1"))  # seconds per probe
+HEALTH_PATH = os.getenv("LB_HEALTH_PATH", "/health")
+HEALTH_FAIL_THRESHOLD = int(os.getenv("LB_HEALTH_FAIL_THRESHOLD", "2"))  # fails to mark down
+HEALTH_RISE_THRESHOLD = int(os.getenv("LB_HEALTH_RISE_THRESHOLD", "2"))  # passes to mark up

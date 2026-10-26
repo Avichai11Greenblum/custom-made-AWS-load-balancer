@@ -14,8 +14,12 @@ class BackendServer:
         active_connections: Number of requests currently being handled by
             this server. The proxy raises it when a request starts and lowers
             it when the request finishes. Used by least_connections.
+        healthy: Whether the server may receive requests. Set by the health
+            checker; unhealthy servers are skipped by the proxy. Servers start
+            healthy until a health check says otherwise.
     """
 
     url: str
     traffic_weight: int = 1
     active_connections: int = 0
+    healthy: bool = True
