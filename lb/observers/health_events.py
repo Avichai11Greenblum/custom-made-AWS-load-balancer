@@ -40,7 +40,7 @@ class EventPublisher:
     def __init__(self) -> None:
         self.type_to_listeners: dict[type, list[EventListener]] = defaultdict(list)
 
-    def subscribe(self, listener: EventListener) -> None:
+    def add_subscriber(self, listener: EventListener) -> None:
         """Call listener.handle(event) for every future event of its event_type.
 
         Subclasses of listener.event_type are not matched.
