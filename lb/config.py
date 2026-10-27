@@ -1,6 +1,11 @@
 import os
 
 from lb.backend_server import BackendServer
+from lb.resilience.circuit_breaker import CircuitBreaker
+
+MAX_RETRY_ATTEMPTS = int(os.getenv("LB_MAX_ATTEMPTS", "3"))  # backends tried per retryable request
+CB_FAILURE_THRESHOLD = int(os.getenv("LB_CB_FAILURE_THRESHOLD", "5"))  # failures to open circuit
+CB_RECOVERY_TIMEOUT = float(os.getenv("LB_CB_RECOVERY_TIMEOUT", "10"))  # seconds before trial
 
 DEFAULT_BACKENDS = "http://localhost:8001,http://localhost:8002,http://localhost:8003"
 
@@ -10,7 +15,13 @@ def parse_backends(raw: str) -> list[BackendServer]:
     backends = []
     for item in raw.split(","):
         url, _, weight = item.strip().partition("|")
-        backends.append(BackendServer(url=url, traffic_weight=int(weight) if weight else 1))
+        backends.append(
+            BackendServer(
+                url=url,
+                traffic_weight=int(weight) if weight else 1,
+                breaker=CircuitBreaker(CB_FAILURE_THRESHOLD, CB_RECOVERY_TIMEOUT),
+            )
+        )
     return backends
 
 

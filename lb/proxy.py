@@ -12,6 +12,10 @@ from lb.factory import create_server_strategy
 from lb.health_checker import health_check_context
 from lb.observers.listeners import register_default_listeners
 
+logger = logging.getLogger(__name__)
+
+RETRYABLE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
 # Headers that describe a single connection, not the message.
 # A proxy must not forward them (RFC 7230 section 6.1).
 # HOP_BY_HOP is the standard name for the next machine in line 
@@ -39,25 +43,39 @@ def forward_headers_without_irrelevant(request: web.Request) -> dict[str, str]:
     return headers
 
 
-async def proxy(request: web.Request) -> web.StreamResponse:
-    healthy_backends = [b for b in request.app["backends"] if b.healthy]
-    if not healthy_backends:
-        return web.Response(status=503, text="Service unavailable: no healthy backends\n")
-    strategy: ServerStrategy = request.app["strategies"]
-    server = strategy.choose_server(healthy_backends, request.remote or "")
-    server_url = server.url
-    url = server_url + request.path_qs
+class UpstreamFailure(Exception):
+    """A backend could not produce a response. Nothing was sent to the client yet."""
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+async def forward_request_to_server(request: web.Request, server: BackendServer) -> web.StreamResponse:
+    """Send the request to one backend and stream its response back.
+
+    Raises UpstreamFailure if the backend cannot be reached or times out before
+    it answers. Once the backend has answered, errors are not turned into
+    UpstreamFailure, because the client may already be receiving the response.
+    """
     session: aiohttp.ClientSession = request.app["session"]
+    outcome_recorded = False
 
     server.active_connections += 1
     try:
         async with session.request(
             request.method,
-            url,
+            server.url + request.path_qs,
             headers=forward_headers_without_irrelevant(request),
             data=request.content if request.can_read_body else None,
             allow_redirects=False,
         ) as upstream:
+            if upstream.status >= 500:
+                server.breaker.record_failure()
+            else:
+                server.breaker.record_success()
+            outcome_recorded = True
+
             response = web.StreamResponse(status=upstream.status, reason=upstream.reason)
             for key, value in upstream.headers.items():
                 if key.lower() not in HOP_BY_HOP:
@@ -67,12 +85,48 @@ async def proxy(request: web.Request) -> web.StreamResponse:
                 await response.write(chunk)
             await response.write_eof()
             return response
-    except aiohttp.ClientConnectionError:
-        return web.Response(status=502, text=f"Bad gateway: cannot reach {server_url}\n")
-    except asyncio.TimeoutError:
-        return web.Response(status=504, text=f"Gateway timeout: {server_url}\n")
+    except (aiohttp.ClientError, asyncio.TimeoutError) as error:
+        if outcome_recorded:
+            raise
+        server.breaker.record_failure()
+        outcome_recorded = True
+        if isinstance(error, asyncio.TimeoutError):
+            raise UpstreamFailure(504, f"Gateway timeout: {server.url}\n") from error
+        raise UpstreamFailure(502, f"Bad gateway: cannot reach {server.url}\n") from error
     finally:
         server.active_connections -= 1
+        if not outcome_recorded:
+            server.breaker.cancel_attempt()
+
+
+async def proxy(request: web.Request) -> web.StreamResponse:
+    strategy: ServerStrategy = request.app["strategies"]
+    # Only requests that are safe to repeat and have no body (which can be read once) are retried.
+    retryable = request.method in RETRYABLE_METHODS and not request.can_read_body
+    max_retry_attempts = config.MAX_RETRY_ATTEMPTS if retryable else 1
+    tried: set[str] = set()
+    last_failure: UpstreamFailure | None = None
+
+    for _ in range(max_retry_attempts):
+        candidates = [
+            b
+            for b in request.app["backends"]
+            if b.healthy and b.url not in tried and b.breaker.is_available()
+        ]
+        if not candidates:
+            break
+        server = strategy.choose_server(candidates, request.remote or "")
+        tried.add(server.url)
+        server.breaker.begin_attempt()
+        try:
+            return await forward_request_to_server(request, server)
+        except UpstreamFailure as failure:
+            last_failure = failure
+            logger.warning("Request to %s failed (%s), trying another backend", server.url, failure.status)
+
+    if last_failure is not None:
+        return web.Response(status=last_failure.status, text=str(last_failure))
+    return web.Response(status=503, text="Service unavailable: no available backends\n")
 
 
 async def client_session(app: web.Application):
