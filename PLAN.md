@@ -44,7 +44,8 @@ load-balancer/
 4. **Health checks + Observer**: background checks, remove/restore dead backends, publish events.
 5. **Resilience**, in two parts:
    - **5a**: retries on connection errors/timeouts (safe requests only) + circuit breaker per backend (State pattern).
-   - **5b**: middleware chain (Decorator: logging, timing) + graceful drain.
+   - **5b-i**: middleware chain (Decorator): request logging with timing, max-in-flight load shedding.
+   - **5b-ii**: graceful drain (`draining` flag, finish in-flight requests, no new ones).
 6. **Dynamic pool**: Registry + admin API to add/remove backends at runtime; scale with `docker compose up --scale`.
 7. **AWS via LocalStack**: CloudWatch metrics (req/s, latency, healthy count) and SNS alert on backend down, behind an Adapter so real AWS is just an endpoint swap.
 8. **Load test + compare**: locust/hey against each algorithm; optionally benchmark against nginx.
@@ -70,8 +71,9 @@ load-balancer/
 - [x] Stage 2: minimal proxy (aiohttp, `lb/proxy.py`)
 - [x] Stage 3: Strategy + Factory, tests, CI
 - [x] Stage 4: health checks + Observer
-- [ ] Stage 5a: retries + circuit breaker (written, needs verification)
-- [ ] Stage 5b: middleware chain + graceful drain
+- [x] Stage 5a: retries + circuit breaker
+- [ ] Stage 5b-i: middleware chain (written, needs verification)
+- [ ] Stage 5b-ii: graceful drain (postponed, to do later)
 - [ ] Stage 6: dynamic pool
 - [ ] Stage 7: AWS via LocalStack
 - [ ] Stage 8: load test + compare
