@@ -10,6 +10,9 @@ from lb.backend_server import BackendServer
 from lb.observers.health_events import EventPublisher
 from lb.factory import create_server_strategy
 from lb.health_checker import health_check_context
+from lb.middleware.base import build_chain
+from lb.middleware.max_in_flight import MaxInFlight
+from lb.middleware.request_logging import BACKEND_KEY, RequestLogging
 from lb.observers.listeners import register_default_listeners
 
 logger = logging.getLogger(__name__)
@@ -116,6 +119,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         if not candidates:
             break
         server = strategy.choose_server(candidates, request.remote or "")
+        request[BACKEND_KEY] = server.url  # read by the RequestLogging middleware
         tried.add(server.url)
         server.breaker.begin_attempt()
         try:
@@ -147,7 +151,9 @@ def create_app(
     app["event_publisher"] = event_publisher
     app.cleanup_ctx.append(client_session)
     app.cleanup_ctx.append(health_check_context)  # needs app["session"], so it comes second
-    app.router.add_route("*", "/{tail:.*}", proxy)
+    # First in the list is outermost, so logging also sees the 503s from MaxInFlight.
+    handler = build_chain(proxy, [RequestLogging(), MaxInFlight(config.MAX_IN_FLIGHT)])
+    app.router.add_route("*", "/{tail:.*}", handler)
     return app
 
 
