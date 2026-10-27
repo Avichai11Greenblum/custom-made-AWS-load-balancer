@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from lb.resilience.circuit_breaker import CircuitBreaker
 
 
 @dataclass
@@ -17,9 +19,16 @@ class BackendServer:
         healthy: Whether the server may receive requests. Set by the health
             checker; unhealthy servers are skipped by the proxy. Servers start
             healthy until a health check says otherwise.
+        breaker: Circuit breaker fed by real request results. While it is open
+            the proxy skips this server even if health checks still pass.
     """
 
     url: str
     traffic_weight: int = 1
     active_connections: int = 0
     healthy: bool = True
+    breaker: CircuitBreaker = field(default_factory=CircuitBreaker)
+
+    def __post_init__(self) -> None:
+        if not self.breaker.name:
+            self.breaker.name = self.url

@@ -42,7 +42,9 @@ load-balancer/
 2. **Minimal proxy**: LB forwards requests to a hard-coded list (plain round robin).
 3. **Strategy pattern**: algorithms behind one interface; add weighted, least-connections, ip-hash; Factory picks by config.
 4. **Health checks + Observer**: background checks, remove/restore dead backends, publish events.
-5. **Resilience**: retries/timeouts, circuit breaker (State pattern), graceful drain; middleware chain (Decorator).
+5. **Resilience**, in two parts:
+   - **5a**: retries on connection errors/timeouts (safe requests only) + circuit breaker per backend (State pattern).
+   - **5b**: middleware chain (Decorator: logging, timing) + graceful drain.
 6. **Dynamic pool**: Registry + admin API to add/remove backends at runtime; scale with `docker compose up --scale`.
 7. **AWS via LocalStack**: CloudWatch metrics (req/s, latency, healthy count) and SNS alert on backend down, behind an Adapter so real AWS is just an endpoint swap.
 8. **Load test + compare**: locust/hey against each algorithm; optionally benchmark against nginx.
@@ -67,8 +69,9 @@ load-balancer/
 - [x] Stage 1: backends + compose
 - [x] Stage 2: minimal proxy (aiohttp, `lb/proxy.py`)
 - [x] Stage 3: Strategy + Factory, tests, CI
-- [ ] Stage 4: health checks + Observer (written, needs verification)
-- [ ] Stage 5: resilience
+- [x] Stage 4: health checks + Observer
+- [ ] Stage 5a: retries + circuit breaker (written, needs verification)
+- [ ] Stage 5b: middleware chain + graceful drain
 - [ ] Stage 6: dynamic pool
 - [ ] Stage 7: AWS via LocalStack
 - [ ] Stage 8: load test + compare
