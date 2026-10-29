@@ -7,6 +7,8 @@ MAX_RETRY_ATTEMPTS = int(os.getenv("LB_MAX_ATTEMPTS", "3"))  # backends tried pe
 CB_FAILURE_THRESHOLD = int(os.getenv("LB_CB_FAILURE_THRESHOLD", "5"))  # failures to open circuit
 CB_RECOVERY_TIMEOUT = float(os.getenv("LB_CB_RECOVERY_TIMEOUT", "10"))  # seconds before trial
 MAX_IN_FLIGHT = int(os.getenv("LB_MAX_IN_FLIGHT", "1000"))  # concurrent requests before 503
+ADMIN_PORT = int(os.getenv("LB_ADMIN_PORT", "8081"))
+DRAIN_TIMEOUT = float(os.getenv("LB_DRAIN_TIMEOUT", "30"))  # seconds to wait for in-flight requests
 
 DEFAULT_BACKENDS = "http://localhost:8001,http://localhost:8002,http://localhost:8003"
 

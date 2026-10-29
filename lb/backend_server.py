@@ -19,6 +19,8 @@ class BackendServer:
         healthy: Whether the server may receive requests. Set by the health
             checker; unhealthy servers are skipped by the proxy. Servers start
             healthy until a health check says otherwise.
+        draining: Whether the server is being taken out of service. A draining
+            server gets no new requests but finishes the ones in progress.
         breaker: Circuit breaker fed by real request results. While it is open
             the proxy skips this server even if health checks still pass.
     """
@@ -27,6 +29,7 @@ class BackendServer:
     traffic_weight: int = 1
     active_connections: int = 0
     healthy: bool = True
+    draining: bool = False
     breaker: CircuitBreaker = field(default_factory=CircuitBreaker)
 
     def __post_init__(self) -> None:

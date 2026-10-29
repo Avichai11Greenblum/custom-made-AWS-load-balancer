@@ -72,8 +72,9 @@ load-balancer/
 - [x] Stage 3: Strategy + Factory, tests, CI
 - [x] Stage 4: health checks + Observer
 - [x] Stage 5a: retries + circuit breaker
-- [ ] Stage 5b-i: middleware chain (written, needs verification)
-- [ ] Stage 5b-ii: graceful drain (postponed, to do later)
+- [x] Stage 5b-i: middleware chain (written, needs verification)
+- [x] Stage 5b-i: middleware chain
+- [ ] Stage 5b-ii: graceful drain (written, needs verification; admin API grows in Stage 6)
 - [ ] Stage 6: dynamic pool
 - [ ] Stage 7: AWS via LocalStack
 - [ ] Stage 8: load test + compare
