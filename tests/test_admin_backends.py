@@ -50,6 +50,12 @@ def test_add_registers_the_backend():
     assert registry.get("http://b1").traffic_weight == 2
 
 
+def test_added_backend_starts_unhealthy_until_the_health_checker_promotes_it():
+    registry = BackendRegistry()
+    call(registry, "POST", "/admin/backends", json={"url": "http://b1"})
+    assert registry.get("http://b1").healthy is False
+
+
 def test_add_defaults_weight_to_one_and_strips_trailing_slash():
     registry = BackendRegistry()
     status, _ = call(registry, "POST", "/admin/backends", json={"url": "http://b1/"})

@@ -84,8 +84,9 @@ async def list_backends(request: web.Request) -> web.Response:
 async def add_backend(request: web.Request) -> web.Response:
     """Register a new backend from a JSON body: {"url": "http://host:port", "weight": 2}.
 
-    The weight is optional and defaults to 1. The backend counts as healthy until
-    the health checker says otherwise, so it starts receiving traffic right away.
+    The weight is optional and defaults to 1. The backend starts as unhealthy and
+    receives no traffic until the health checker has seen it pass enough probes,
+    so a backend that is not up yet never gets requests.
     """
     try:
         body = await request.json()
@@ -103,6 +104,7 @@ async def add_backend(request: web.Request) -> web.Response:
 
     # The proxy appends the request path to the URL, so a trailing slash would double up.
     backend = config.make_backend(url.rstrip("/"), weight)
+    backend.healthy = False  # the health checker promotes it once its probes pass
     try:
         request.app[BACKENDS_KEY].add(backend)
     except DuplicateBackendError:
@@ -141,8 +143,8 @@ async def admin_server_context(app: web.Application):
     immediately.
 
     It binds to 127.0.0.1 (localhost), so only programs on the same machine can
-    connect. The API has no login, and anyone who could reach it could drain
-    backends. Binding to 0.0.0.0 instead would expose it to the whole network.
+    connect. The API has no login, and anyone who could reach it could drain or
+    remove backends. Binding to 0.0.0.0 instead would expose it to the whole network.
     """
     runner = web.AppRunner(create_admin_app(app[BACKENDS_KEY]))
     await runner.setup()
