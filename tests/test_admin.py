@@ -5,8 +5,8 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 
-from lb.admin import create_admin_app, drain, undrain, wait_until_idle
-from lb.backend_server import BackendServer
+from lb.admin.api import create_admin_app, drain, undrain, wait_until_idle
+from lb.backend_servers_pool.backend_server import BackendServer
 
 
 def admin_request(method: str, path: str, backends: list[BackendServer]):

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import aiohttp
 from aiohttp import web
 
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.choose_servers_algos.base import ServerStrategy
 from lb.observers.health_events import EventPublisher
 

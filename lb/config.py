@@ -1,6 +1,6 @@
 import os
 
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.resilience.circuit_breaker import CircuitBreaker
 
 MAX_RETRY_ATTEMPTS = int(os.getenv("LB_MAX_ATTEMPTS", "3"))  # backends tried per retryable request

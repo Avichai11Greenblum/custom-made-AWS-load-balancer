@@ -5,13 +5,13 @@ import aiohttp
 from aiohttp import web
 
 from lb import config
-from lb.admin import admin_server_context
+from lb.admin.api import admin_server_context
 from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY, STRATEGY_KEY
 from lb.choose_servers_algos.base import ServerStrategy
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.observers.health_events import EventPublisher
-from lb.factory import create_server_strategy
-from lb.health_checker import health_check_context
+from lb.choose_servers_algos.factory import create_server_strategy
+from lb.resilience.health_checker import health_check_context
 from lb.middleware.base import build_chain
 from lb.middleware.max_in_flight import MaxInFlight
 from lb.middleware.request_logging import BACKEND_KEY, RequestLogging
