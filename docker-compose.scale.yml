@@ -1,0 +1,12 @@
+# Backends you can scale:
+#   docker compose -f docker-compose.scale.yml up -d --scale backend=3
+#
+# Each replica gets its own host port from the range below. Find a replica's
+# port with: docker compose -f docker-compose.scale.yml port --index 1 backend 8000
+name: lb-scale
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8101-8120:8000"
