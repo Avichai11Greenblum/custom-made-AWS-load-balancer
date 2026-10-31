@@ -22,18 +22,24 @@ load-balancer/
     Dockerfile
   lb/
     proxy.py                # proxy entrypoint
-    backend_server.py       # BackendServer dataclass
+    config.py               # settings from environment variables
+    app_keys.py             # typed keys for shared objects on the aiohttp app
+    backend_servers_pool/
+      backend_server.py     # BackendServer dataclass
+      registry.py           # backend pool (Singleton/Registry), Stage 6
     choose_servers_algos/   # Strategy: round_robin, weighted, least_connections, ip_hash
-    health_checker.py             # active health checker (background task)
+      factory.py            # builds a strategy by name
+    resilience/
+      circuit_breaker.py    # State pattern
+      health_checker.py     # active health checker (background task)
     observers/              # Observer pattern
-      health_events.py           # event publisher + BackendUp/BackendDown events
+      health_events.py      # event publisher + BackendUp/BackendDown events
       event_listener.py     # EventListener base class (one subclass per reaction)
       listeners.py          # concrete listeners (logging for now)
-    registry.py             # backend pool (Singleton/Registry)
-    factory.py              # builds algorithm from config
-    middleware.py           # Decorator/chain: logging, timing, retry
-    aws/                    # CloudWatch + SNS adapters (Adapter pattern)
-    config.py
+    middleware/             # Decorator/chain: request logging, max in flight
+    admin/
+      api.py                # admin API on its own port: drain, undrain (Stage 6 adds more)
+    aws/                    # CloudWatch + SNS adapters (Adapter pattern), Stage 7
   tests/
 ```
 

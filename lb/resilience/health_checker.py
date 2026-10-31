@@ -8,7 +8,7 @@ from aiohttp import web
 
 from lb import config
 from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.observers.health_events import BackendDown, BackendUp, EventPublisher
 
 

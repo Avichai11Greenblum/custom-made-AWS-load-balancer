@@ -1,7 +1,7 @@
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.observers.event_listener import EventListener
 from lb.observers.health_events import BackendDown, BackendUp, EventPublisher
-from lb.health_checker import HealthChecker
+from lb.resilience.health_checker import HealthChecker
 
 
 class RecordBackendDown(EventListener):

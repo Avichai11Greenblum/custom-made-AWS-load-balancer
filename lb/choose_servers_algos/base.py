@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 
 
 class ServerStrategy(ABC):

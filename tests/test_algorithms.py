@@ -2,9 +2,9 @@ from collections import Counter
 
 import pytest
 
-from lb.backend_server import BackendServer
+from lb.backend_servers_pool.backend_server import BackendServer
 from lb.config import parse_backends
-from lb.factory import create_server_strategy
+from lb.choose_servers_algos.factory import create_server_strategy
 
 
 def make_backends(*weights: int) -> list[BackendServer]:
