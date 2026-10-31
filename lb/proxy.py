@@ -5,6 +5,8 @@ import aiohttp
 from aiohttp import web
 
 from lb import config
+from lb.admin import admin_server_context
+from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY, STRATEGY_KEY
 from lb.choose_servers_algos.base import ServerStrategy
 from lb.backend_server import BackendServer
 from lb.observers.health_events import EventPublisher
@@ -61,7 +63,7 @@ async def forward_request_to_server(request: web.Request, server: BackendServer)
     it answers. Once the backend has answered, errors are not turned into
     UpstreamFailure, because the client may already be receiving the response.
     """
-    session: aiohttp.ClientSession = request.app["session"]
+    session = request.app[SESSION_KEY]
     outcome_recorded = False
 
     server.active_connections += 1
@@ -103,7 +105,7 @@ async def forward_request_to_server(request: web.Request, server: BackendServer)
 
 
 async def proxy(request: web.Request) -> web.StreamResponse:
-    strategy: ServerStrategy = request.app["strategies"]
+    strategy = request.app[STRATEGY_KEY]
     # Only requests that are safe to repeat and have no body (which can be read once) are retried.
     retryable = request.method in RETRYABLE_METHODS and not request.can_read_body
     max_retry_attempts = config.MAX_RETRY_ATTEMPTS if retryable else 1
@@ -113,8 +115,8 @@ async def proxy(request: web.Request) -> web.StreamResponse:
     for _ in range(max_retry_attempts):
         candidates = [
             b
-            for b in request.app["backends"]
-            if b.healthy and b.url not in tried and b.breaker.is_available()
+            for b in request.app[BACKENDS_KEY]
+            if b.healthy and not b.draining and b.url not in tried and b.breaker.is_available()
         ]
         if not candidates:
             break
@@ -138,7 +140,7 @@ async def client_session(app: web.Application):
     # auto_decompress=False keeps bytes identical to what the backend sent,
     # so Content-Encoding and Content-Length stay correct.
     async with aiohttp.ClientSession(timeout=timeout, auto_decompress=False) as session:
-        app["session"] = session
+        app[SESSION_KEY] = session
         yield
 
 
@@ -146,11 +148,12 @@ def create_app(
     backends: list[BackendServer], strategies: ServerStrategy, event_publisher: EventPublisher
 ) -> web.Application:
     app = web.Application()
-    app["backends"] = backends
-    app["strategies"] = strategies
-    app["event_publisher"] = event_publisher
+    app[BACKENDS_KEY] = backends
+    app[STRATEGY_KEY] = strategies
+    app[EVENT_PUBLISHER_KEY] = event_publisher
     app.cleanup_ctx.append(client_session)
-    app.cleanup_ctx.append(health_check_context)  # needs app["session"], so it comes second
+    app.cleanup_ctx.append(health_check_context)  # needs app[SESSION_KEY], so it comes second
+    app.cleanup_ctx.append(admin_server_context)
     # First in the list is outermost, so logging also sees the 503s from MaxInFlight.
     handler = build_chain(proxy, [RequestLogging(), MaxInFlight(config.MAX_IN_FLIGHT)])
     app.router.add_route("*", "/{tail:.*}", handler)

@@ -7,6 +7,7 @@ import aiohttp
 from aiohttp import web
 
 from lb import config
+from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY
 from lb.backend_server import BackendServer
 from lb.observers.health_events import BackendDown, BackendUp, EventPublisher
 
@@ -79,7 +80,7 @@ class HealthChecker:
 
 async def health_check_context(app: web.Application):
     """aiohttp cleanup_ctx: start the checker with the app, stop it on shutdown."""
-    checker = HealthChecker(app["backends"], app["session"], app["event_publisher"])
+    checker = HealthChecker(app[BACKENDS_KEY], app[SESSION_KEY], app[EVENT_PUBLISHER_KEY])
     task = asyncio.create_task(checker.run())
     yield
     task.cancel()
