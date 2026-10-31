@@ -1,6 +1,6 @@
 import asyncio
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable
 from contextlib import suppress
 
 import aiohttp
@@ -22,7 +22,7 @@ class HealthChecker:
 
     def __init__(
         self,
-        backends: Sequence[BackendServer],
+        backends: Iterable[BackendServer],
         session: aiohttp.ClientSession | None,
         event_publisher: EventPublisher,
         interval: float = config.HEALTH_INTERVAL,
@@ -48,9 +48,19 @@ class HealthChecker:
             await asyncio.sleep(self._interval)
 
     async def check_all(self) -> None:
-        results = await asyncio.gather(*(self._probe(b) for b in self._backends))
-        for backend, ok in zip(self._backends, results):
+        # Snapshot: backends may be added or removed while the probes are running.
+        backends = list(self._backends)
+        self._forget_removed(backends)
+        results = await asyncio.gather(*(self._probe(b) for b in backends))
+        for backend, ok in zip(backends, results):
             self.record_result(backend, ok)
+
+    def _forget_removed(self, backends: list[BackendServer]) -> None:
+        """Drop streak counters of removed backends, so a re-added one starts fresh."""
+        current = {b.url for b in backends}
+        for counters in (self._failures, self._successes):
+            for url in [u for u in counters if u not in current]:
+                del counters[url]
 
     async def _probe(self, backend: BackendServer) -> bool:
         try:

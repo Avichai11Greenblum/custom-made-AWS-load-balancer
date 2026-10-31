@@ -26,7 +26,7 @@ load-balancer/
     app_keys.py             # typed keys for shared objects on the aiohttp app
     backend_servers_pool/
       backend_server.py     # BackendServer dataclass
-      registry.py           # backend pool (Singleton/Registry), Stage 6
+      servers_registry.py   # BackendRegistry: owns the set of backends (Registry pattern), Stage 6
     choose_servers_algos/   # Strategy: round_robin, weighted, least_connections, ip_hash
       factory.py            # builds a strategy by name
     resilience/
