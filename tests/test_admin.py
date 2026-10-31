@@ -7,10 +7,11 @@ from aiohttp.test_utils import make_mocked_request
 
 from lb.admin.api import create_admin_app, drain, undrain, wait_until_idle
 from lb.backend_servers_pool.backend_server import BackendServer
+from lb.backend_servers_pool.servers_registry import BackendRegistry
 
 
 def admin_request(method: str, path: str, backends: list[BackendServer]):
-    return make_mocked_request(method, path, app=create_admin_app(backends))
+    return make_mocked_request(method, path, app=create_admin_app(BackendRegistry(backends)))
 
 
 def test_wait_until_idle_returns_true_when_nothing_is_running():

@@ -1,12 +1,11 @@
 import asyncio
 import logging
-from collections.abc import Sequence
-
 from aiohttp import web
 
 from lb import config
 from lb.app_keys import BACKENDS_KEY
 from lb.backend_servers_pool.backend_server import BackendServer
+from lb.backend_servers_pool.servers_registry import BackendNotFoundError, BackendRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +27,10 @@ def find_backend(request: web.Request) -> BackendServer:
     url = request.query.get("url")
     if not url:
         raise web.HTTPBadRequest(text="Missing ?url=\n")
-    for backend in request.app[BACKENDS_KEY]:
-        if backend.url == url:
-            return backend
-    raise web.HTTPNotFound(text=f"Unknown backend: {url}\n")
+    try:
+        return request.app[BACKENDS_KEY].get(url)
+    except BackendNotFoundError:
+        raise web.HTTPNotFound(text=f"Unknown backend: {url}\n") from None
 
 
 async def drain(request: web.Request) -> web.Response:
@@ -62,7 +61,7 @@ async def undrain(request: web.Request) -> web.Response:
     return web.json_response({"url": backend.url, "draining": False})
 
 
-def create_admin_app(backends: Sequence[BackendServer]) -> web.Application:
+def create_admin_app(backends: BackendRegistry) -> web.Application:
     app = web.Application()
     app[BACKENDS_KEY] = backends
     app.router.add_post("/admin/drain", drain)

@@ -9,6 +9,7 @@ from lb.admin.api import admin_server_context
 from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY, STRATEGY_KEY
 from lb.choose_servers_algos.base import ServerStrategy
 from lb.backend_servers_pool.backend_server import BackendServer
+from lb.backend_servers_pool.servers_registry import BackendRegistry
 from lb.observers.health_events import EventPublisher
 from lb.choose_servers_algos.factory import create_server_strategy
 from lb.resilience.health_checker import health_check_context
@@ -145,7 +146,7 @@ async def client_session(app: web.Application):
 
 
 def create_app(
-    backends: list[BackendServer], strategies: ServerStrategy, event_publisher: EventPublisher
+    backends: BackendRegistry, strategies: ServerStrategy, event_publisher: EventPublisher
 ) -> web.Application:
     app = web.Application()
     app[BACKENDS_KEY] = backends
@@ -164,7 +165,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     event_publisher = EventPublisher()
     register_default_listeners(event_publisher)
+    backend_registry = BackendRegistry(config.BACKENDS)
     web.run_app(
-        create_app(config.BACKENDS, create_server_strategy(config.ALGORITHM), event_publisher),
+        create_app(backend_registry, create_server_strategy(config.ALGORITHM), event_publisher),
         port=config.PORT,
     )
