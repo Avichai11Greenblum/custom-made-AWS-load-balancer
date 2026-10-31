@@ -5,7 +5,11 @@ from aiohttp import web
 from lb import config
 from lb.app_keys import BACKENDS_KEY
 from lb.backend_servers_pool.backend_server import BackendServer
-from lb.backend_servers_pool.servers_registry import BackendNotFoundError, BackendRegistry
+from lb.backend_servers_pool.servers_registry import (
+    BackendNotFoundError,
+    BackendRegistry,
+    DuplicateBackendError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +65,70 @@ async def undrain(request: web.Request) -> web.Response:
     return web.json_response({"url": backend.url, "draining": False})
 
 
+def describe(backend: BackendServer) -> dict:
+    return {
+        "url": backend.url,
+        "weight": backend.traffic_weight,
+        "healthy": backend.healthy,
+        "draining": backend.draining,
+        "circuit": backend.breaker.state_name,
+        "active_connections": backend.active_connections,
+    }
+
+
+async def list_backends(request: web.Request) -> web.Response:
+    """Show every registered backend and its current state."""
+    return web.json_response([describe(b) for b in request.app[BACKENDS_KEY]])
+
+
+async def add_backend(request: web.Request) -> web.Response:
+    """Register a new backend from a JSON body: {"url": "http://host:port", "weight": 2}.
+
+    The weight is optional and defaults to 1. The backend counts as healthy until
+    the health checker says otherwise, so it starts receiving traffic right away.
+    """
+    try:
+        body = await request.json()
+    except ValueError:
+        raise web.HTTPBadRequest(text="Body must be valid JSON\n") from None
+    if not isinstance(body, dict):
+        raise web.HTTPBadRequest(text='Body must be a JSON object like {"url": "..."}\n')
+
+    url = body.get("url")
+    weight = body.get("weight", 1)
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        raise web.HTTPBadRequest(text="url must start with http:// or https://\n")
+    if not isinstance(weight, int) or isinstance(weight, bool) or weight < 1:
+        raise web.HTTPBadRequest(text="weight must be an integer of 1 or more\n")
+
+    # The proxy appends the request path to the URL, so a trailing slash would double up.
+    backend = config.make_backend(url.rstrip("/"), weight)
+    try:
+        request.app[BACKENDS_KEY].add(backend)
+    except DuplicateBackendError:
+        raise web.HTTPConflict(text=f"Backend already registered: {backend.url}\n") from None
+    logger.info("Added backend %s (weight %d)", backend.url, backend.traffic_weight)
+    return web.json_response(describe(backend), status=201)
+
+
+async def remove_backend(request: web.Request) -> web.Response:
+    """Unregister a backend. It stops receiving requests immediately.
+
+    Requests already running on it still finish. To avoid cutting any of them
+    off, call drain first and remove once it reports drained: true.
+    """
+    backend = find_backend(request)
+    request.app[BACKENDS_KEY].remove(backend.url)
+    logger.info("Removed backend %s", backend.url)
+    return web.json_response(describe(backend))
+
+
 def create_admin_app(backends: BackendRegistry) -> web.Application:
     app = web.Application()
     app[BACKENDS_KEY] = backends
+    app.router.add_get("/admin/backends", list_backends)
+    app.router.add_post("/admin/backends", add_backend)
+    app.router.add_delete("/admin/backends", remove_backend)
     app.router.add_post("/admin/drain", drain)
     app.router.add_post("/admin/undrain", undrain)
     return app

@@ -13,18 +13,21 @@ DRAIN_TIMEOUT = float(os.getenv("LB_DRAIN_TIMEOUT", "30"))  # seconds to wait fo
 DEFAULT_BACKENDS = "http://localhost:8001,http://localhost:8002,http://localhost:8003"
 
 
+def make_backend(url: str, weight: int = 1) -> BackendServer:
+    """Create a BackendServer with a circuit breaker configured from the settings above."""
+    return BackendServer(
+        url=url,
+        traffic_weight=weight,
+        breaker=CircuitBreaker(CB_FAILURE_THRESHOLD, CB_RECOVERY_TIMEOUT),
+    )
+
+
 def parse_backends(raw: str) -> list[BackendServer]:
     """Parse 'url|weight,url|weight'. The weight is optional and defaults to 1."""
     backends = []
     for item in raw.split(","):
         url, _, weight = item.strip().partition("|")
-        backends.append(
-            BackendServer(
-                url=url,
-                traffic_weight=int(weight) if weight else 1,
-                breaker=CircuitBreaker(CB_FAILURE_THRESHOLD, CB_RECOVERY_TIMEOUT),
-            )
-        )
+        backends.append(make_backend(url, int(weight) if weight else 1))
     return backends
 
 
