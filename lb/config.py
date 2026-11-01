@@ -27,6 +27,8 @@ def parse_backends(raw: str) -> list[BackendServer]:
     backends = []
     for item in raw.split(","):
         url, _, weight = item.strip().partition("|")
+        if not url:
+            continue
         backends.append(make_backend(url, int(weight) if weight else 1))
     return backends
 

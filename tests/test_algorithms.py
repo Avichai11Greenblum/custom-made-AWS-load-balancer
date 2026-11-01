@@ -72,3 +72,7 @@ def test_factory_rejects_unknown_name():
 def test_parse_backends_with_and_without_weight():
     backends = parse_backends("http://a:1|3, http://b:2")
     assert [(b.url, b.traffic_weight) for b in backends] == [("http://a:1", 3), ("http://b:2", 1)]
+
+
+def test_parse_backends_empty_string_means_no_backends():
+    assert parse_backends("") == []
