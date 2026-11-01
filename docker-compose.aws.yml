@@ -1,0 +1,18 @@
+# Fake AWS on your machine. Start it only when you work on the AWS features:
+#   docker compose -f docker-compose.aws.yml up -d
+#   docker compose -f docker-compose.aws.yml down
+name: lb-aws
+
+services:
+  localstack:
+    # Pinned to an older release on purpose: newer ones may ask for an account token.
+    image: localstack/localstack:3.8
+    ports:
+      - "127.0.0.1:4566:4566"  # every AWS service answers on this one port
+    environment:
+      SERVICES: sns,sqs,cloudwatch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
