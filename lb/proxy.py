@@ -16,7 +16,9 @@ from lb.resilience.health_checker import health_check_context
 from lb.middleware.base import build_chain
 from lb.middleware.max_in_flight import MaxInFlight
 from lb.middleware.request_logging import BACKEND_KEY, RequestLogging
+from lb.observers.alert_listeners import register_alert_listeners
 from lb.observers.listeners import register_default_listeners
+from lb.aws.factory import create_alert_sink
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +167,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     event_publisher = EventPublisher()
     register_default_listeners(event_publisher)
+    register_alert_listeners(event_publisher, create_alert_sink())
     backend_registry = BackendRegistry(config.BACKENDS)
     web.run_app(
         create_app(backend_registry, create_server_strategy(config.ALGORITHM), event_publisher),

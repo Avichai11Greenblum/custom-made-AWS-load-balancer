@@ -14,6 +14,8 @@ DRAIN_TIMEOUT = float(os.getenv("LB_DRAIN_TIMEOUT", "30"))  # seconds to wait fo
 AWS_ENABLED = os.getenv("LB_AWS_ENABLED", "false").lower() in ("1", "true", "yes")
 AWS_ENDPOINT_URL = os.getenv("LB_AWS_ENDPOINT_URL", "http://localhost:4566") or None
 AWS_REGION = os.getenv("LB_AWS_REGION", "us-east-1")
+ALERT_TOPIC_NAME = os.getenv("LB_ALERT_TOPIC", "lb-alerts")
+ALERT_QUEUE_NAME = os.getenv("LB_ALERT_QUEUE", "lb-alerts-queue")
 
 DEFAULT_BACKENDS ="http://localhost:8001,http://localhost:8002,http://localhost:8003"
 
