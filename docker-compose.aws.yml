@@ -5,8 +5,9 @@ name: lb-aws
 
 services:
   localstack:
-    # Pinned to an older release on purpose: newer ones may ask for an account token.
-    image: localstack/localstack:3.8
+    # Pinned on purpose: releases from 2026.03 on need a LocalStack account token.
+    # Older than 4.10 cannot answer the CloudWatch format that current boto3 uses.
+    image: localstack/localstack:4.12
     ports:
       - "127.0.0.1:4566:4566"  # every AWS service answers on this one port
     environment:
