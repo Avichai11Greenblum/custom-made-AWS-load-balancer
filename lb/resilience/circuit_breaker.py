@@ -112,6 +112,8 @@ class CircuitBreaker:
         recovery_timeout: Seconds an open circuit waits before allowing a trial.
         clock: Time source in seconds; replaceable in tests.
         name: Label used in log messages, usually the backend URL.
+        on_state_change: Optional callback called as (name, old_state_name,
+            new_state_name) after every state change.
     """
 
     def __init__(
@@ -120,11 +122,13 @@ class CircuitBreaker:
         recovery_timeout: float = 10.0,
         clock: Callable[[], float] = time.monotonic,
         name: str = "",
+        on_state_change: Callable[[str, str, str], None] | None = None,
     ) -> None:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.clock = clock
         self.name = name
+        self.on_state_change = on_state_change
         self._state: CircuitState = ClosedState()
 
     @property
@@ -132,8 +136,11 @@ class CircuitBreaker:
         return self._state.name
 
     def transition(self, new_state: CircuitState) -> None:
-        logger.warning("Circuit %s: %s -> %s", self.name, self._state.name, new_state.name)
+        old_name = self._state.name
+        logger.warning("Circuit %s: %s -> %s", self.name, old_name, new_state.name)
         self._state = new_state
+        if self.on_state_change is not None:
+            self.on_state_change(self.name, old_name, new_state.name)
 
     def is_available(self) -> bool:
         return self._state.is_available(self)

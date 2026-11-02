@@ -17,6 +17,7 @@ from lb.middleware.base import build_chain
 from lb.middleware.max_in_flight import MaxInFlight
 from lb.middleware.request_logging import BACKEND_KEY, RequestLogging
 from lb.observers.alert_listeners import register_alert_listeners
+from lb.observers.circuit_events import circuit_event_publisher
 from lb.observers.listeners import register_default_listeners
 from lb.aws.factory import create_alert_sink
 
@@ -168,7 +169,9 @@ if __name__ == "__main__":
     event_publisher = EventPublisher()
     register_default_listeners(event_publisher)
     register_alert_listeners(event_publisher, create_alert_sink())
-    backend_registry = BackendRegistry(config.BACKENDS)
+    backend_registry = BackendRegistry(
+        config.BACKENDS, on_circuit_change=circuit_event_publisher(event_publisher)
+    )
     web.run_app(
         create_app(backend_registry, create_server_strategy(config.ALGORITHM), event_publisher),
         port=config.PORT,

@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 
 from lb.backend_servers_pool.backend_server import BackendServer
 
@@ -20,10 +20,18 @@ class BackendRegistry:
 
     Iterating returns a snapshot, so it is safe to add or remove backends while
     another piece of code is looping over the registry.
+
+    If on_circuit_change is given, it is installed as the on_state_change
+    callback of every backend's circuit breaker, including backends added later.
     """
 
-    def __init__(self, backends: Iterable[BackendServer] = ()) -> None:
+    def __init__(
+        self,
+        backends: Iterable[BackendServer] = (),
+        on_circuit_change: Callable[[str, str, str], None] | None = None,
+    ) -> None:
         self._backends: dict[str, BackendServer] = {}
+        self._on_circuit_change = on_circuit_change
         for backend in backends:
             self.add(backend)
 
@@ -31,6 +39,8 @@ class BackendRegistry:
         """Register a backend. Raises DuplicateBackendError if its URL is taken."""
         if backend.url in self._backends:
             raise DuplicateBackendError(backend.url)
+        if self._on_circuit_change is not None:
+            backend.breaker.on_state_change = self._on_circuit_change
         self._backends[backend.url] = backend
 
     def remove(self, url: str) -> BackendServer:

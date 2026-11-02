@@ -26,14 +26,14 @@ class EventPublisher:
 
     The code that announces an event (e.g. the health checker) only calls
     publish() and knows nothing about who is listening, so new reactions such
-    as alerts or metrics can be added with subscribe() without touching it.
+    as alerts or metrics can be added with add_subscriber() without touching it.
 
     Delivery is synchronous and in-process: publish() runs every matching
     listener in subscription order before it returns.
 
     Example:
         publisher = EventPublisher()
-        publisher.subscribe(LogBackendDown())
+        publisher.add_subscriber(LogBackendDown())
         publisher.publish(BackendDown("http://localhost:8001"))
     """
 

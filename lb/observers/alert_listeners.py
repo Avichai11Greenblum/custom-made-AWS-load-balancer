@@ -1,4 +1,5 @@
 from lb.aws.sinks import AlertSink
+from lb.observers.circuit_events import CircuitClosed, CircuitOpened
 from lb.observers.event_listener import EventListener
 from lb.observers.health_events import BackendDown, BackendUp, EventPublisher
 
@@ -29,6 +30,34 @@ class AlertOnBackendUp(EventListener):
         )
 
 
+class AlertOnCircuitOpened(EventListener):
+    event_type = CircuitOpened
+
+    def __init__(self, sink: AlertSink) -> None:
+        self._sink = sink
+
+    def handle(self, event: CircuitOpened) -> None:
+        self._sink.send_alert(
+            "Circuit OPEN",
+            f"Requests to {event.url} keep failing, so the balancer stopped sending it traffic.",
+        )
+
+
+class AlertOnCircuitClosed(EventListener):
+    event_type = CircuitClosed
+
+    def __init__(self, sink: AlertSink) -> None:
+        self._sink = sink
+
+    def handle(self, event: CircuitClosed) -> None:
+        self._sink.send_alert(
+            "Circuit CLOSED",
+            f"A trial request to {event.url} succeeded, so it receives traffic again.",
+        )
+
+
 def register_alert_listeners(publisher: EventPublisher, sink: AlertSink) -> None:
     publisher.add_subscriber(AlertOnBackendDown(sink))
     publisher.add_subscriber(AlertOnBackendUp(sink))
+    publisher.add_subscriber(AlertOnCircuitOpened(sink))
+    publisher.add_subscriber(AlertOnCircuitClosed(sink))

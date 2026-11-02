@@ -5,7 +5,7 @@ class EventListener(ABC):
     """Object that reacts to one type of event.
 
     Subclass it, set event_type to the event class you care about, and put the
-    reaction in handle(). Register an instance with EventPublisher.subscribe().
+    reaction in handle(). Register an instance with EventPublisher.add_subscriber().
 
     Example:
         class PrintBackendDown(EventListener):
