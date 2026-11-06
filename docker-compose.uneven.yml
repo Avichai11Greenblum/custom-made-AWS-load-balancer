@@ -1,0 +1,8 @@
+# Makes backend3 slow, so the backends are not equal. Use it on top of the normal file:
+#   docker compose -f docker-compose.yml -f docker-compose.uneven.yml up -d --build
+# Back to equal backends:
+#   docker compose up -d --build
+services:
+  backend3:
+    environment:
+      BACKEND_DELAY_MS: "300"

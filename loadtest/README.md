@@ -30,6 +30,26 @@ live charts in the browser.
   95th percentile), and the number of users, all over time.
 - **Download Data tab**: the HTML report and CSV files of the run.
 
+## Uneven backends
+
+With three identical backends every algorithm looks the same. To make them
+differ, slow one down on purpose. `backend3` then waits 300 ms before answering `/`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.uneven.yml up -d --build
+```
+
+Back to equal backends: `docker compose up -d --build`.
+
+The locust file now sends 90 % `GET /` and 10 % `GET /slow?seconds=0.5`. In the
+Statistics tab the `/` requests get one row per backend, such as `/ (backend3)`,
+so you can see the slow backend's median and 95th percentile next to the others.
+The number of requests per row shows how much traffic each backend received.
+
+Check with round robin first: the three `/` rows should have about the same
+number of requests, but `backend3` should be slower. Then see what least
+connections does to that (`LB_ALGORITHM=least_connections`).
+
 ## Things to try
 
 - 10 users, then 50, then 200: when does the 95th percentile start to rise?
