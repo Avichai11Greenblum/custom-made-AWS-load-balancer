@@ -53,7 +53,11 @@ load-balancer/
    - **5b-i**: middleware chain (Decorator): request logging with timing, max-in-flight load shedding.
    - **5b-ii**: graceful drain (`draining` flag, finish in-flight requests, no new ones).
 6. **Dynamic pool**: Registry + admin API to add/remove backends at runtime; scale with `docker compose up --scale`.
-7. **AWS via LocalStack**: CloudWatch metrics (req/s, latency, healthy count) and SNS alert on backend down, behind an Adapter so real AWS is just an endpoint swap.
+7. **AWS via LocalStack**, in four parts, all behind an Adapter so real AWS is just an endpoint swap:
+   - **7a**: foundation. LocalStack container in compose, boto3 clients, `AlertSink` / `MetricsSink` interfaces with do-nothing versions, AWS settings in config.
+   - **7b**: SNS alerts on `BackendDown` / `BackendUp` (new Observer listener) + an SQS queue subscribed to the topic so the messages can be read.
+   - **7c**: circuit breaker events (`CircuitOpened` / `CircuitClosed`) published to the same alerts.
+   - **7d**: CloudWatch metrics (requests per backend, latency, healthy count) from a middleware layer and a background publisher.
 8. **Load test + compare**: locust/hey against each algorithm; optionally benchmark against nginx.
 
 ## Design patterns map
@@ -82,5 +86,8 @@ load-balancer/
 - [x] Stage 5b-i: middleware chain
 - [ ] Stage 5b-ii: graceful drain (written, needs verification; admin API grows in Stage 6)
 - [ ] Stage 6: dynamic pool
-- [ ] Stage 7: AWS via LocalStack
+- [ ] Stage 7a: LocalStack + AWS adapter foundation
+- [ ] Stage 7b: SNS alerts for backend up/down
+- [ ] Stage 7c: circuit breaker alerts
+- [ ] Stage 7d: CloudWatch metrics
 - [ ] Stage 8: load test + compare
