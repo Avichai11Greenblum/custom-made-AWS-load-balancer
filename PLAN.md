@@ -82,12 +82,11 @@ load-balancer/
 - [x] Stage 3: Strategy + Factory, tests, CI
 - [x] Stage 4: health checks + Observer
 - [x] Stage 5a: retries + circuit breaker
-- [x] Stage 5b-i: middleware chain (written, needs verification)
 - [x] Stage 5b-i: middleware chain
-- [ ] Stage 5b-ii: graceful drain (written, needs verification; admin API grows in Stage 6)
-- [ ] Stage 6: dynamic pool
-- [ ] Stage 7a: LocalStack + AWS adapter foundation
-- [ ] Stage 7b: SNS alerts for backend up/down
-- [ ] Stage 7c: circuit breaker alerts
-- [ ] Stage 7d: CloudWatch metrics
-- [ ] Stage 8: load test + compare
+- [x] Stage 5b-ii: graceful drain
+- [x] Stage 6: dynamic pool
+- [x] Stage 7a: LocalStack + AWS adapter foundation
+- [x] Stage 7b: SNS alerts for backend up/down
+- [x] Stage 7c: circuit breaker alerts (unit tests only, live check pending)
+- [x] Stage 7d: CloudWatch metrics (unit tests only, live check pending)
+- [x] Stage 8: load test + compare (`loadtest/`, results in `loadtest/RESULTS.md`)
