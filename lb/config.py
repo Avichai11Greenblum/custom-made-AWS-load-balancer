@@ -16,6 +16,8 @@ AWS_ENDPOINT_URL = os.getenv("LB_AWS_ENDPOINT_URL", "http://localhost:4566") or 
 AWS_REGION = os.getenv("LB_AWS_REGION", "us-east-1")
 ALERT_TOPIC_NAME = os.getenv("LB_ALERT_TOPIC", "lb-alerts")
 ALERT_QUEUE_NAME = os.getenv("LB_ALERT_QUEUE", "lb-alerts-queue")
+METRICS_NAMESPACE = os.getenv("LB_METRICS_NAMESPACE", "LoadBalancer")
+METRICS_INTERVAL = float(os.getenv("LB_METRICS_INTERVAL", "10"))  # seconds between metric reports
 
 DEFAULT_BACKENDS ="http://localhost:8001,http://localhost:8002,http://localhost:8003"
 
