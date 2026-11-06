@@ -8,6 +8,9 @@ app = FastAPI()
 
 NAME = os.getenv("BACKEND_NAME", "backend")
 HOSTNAME = socket.gethostname()
+# Makes this backend slower on purpose, to test how the balancer copes with uneven servers.
+# Applies to "/" only, so health checks stay fast.
+DELAY_SECONDS = float(os.getenv("BACKEND_DELAY_MS", "0")) / 1000
 
 
 def identity() -> dict:
@@ -15,7 +18,9 @@ def identity() -> dict:
 
 
 @app.get("/")
-def root():
+async def root():
+    if DELAY_SECONDS:
+        await asyncio.sleep(DELAY_SECONDS)
     return identity()
 
 
