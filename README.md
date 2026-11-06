@@ -51,7 +51,10 @@ What it shows:
 - Least connections adapts to the slow backend with no configuration.
 - IP hash sends all traffic from one client IP to the same backend. That suits sticky sessions, not a load test run from one machine.
 
-No request failed in any run. See [loadtest/](loadtest/) to reproduce it, including a script that runs every algorithm and draws the comparison chart.
+- Example usage: 
+<img width="1876" height="645" alt="image" src="https://github.com/user-attachments/assets/1755a583-c95d-4a31-983d-8d8d8acb32bd" />
+<img width="2550" height="825" alt="image" src="https://github.com/user-attachments/assets/cd6148f0-f508-4df0-9dbe-57db24d116fb" />
+
 
 ## Quick start
 
