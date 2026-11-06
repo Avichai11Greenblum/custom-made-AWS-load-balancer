@@ -6,7 +6,14 @@ from aiohttp import web
 
 from lb import config
 from lb.admin.api import admin_server_context
-from lb.app_keys import BACKENDS_KEY, EVENT_PUBLISHER_KEY, SESSION_KEY, STRATEGY_KEY
+from lb.app_keys import (
+    BACKENDS_KEY,
+    EVENT_PUBLISHER_KEY,
+    METRICS_SINK_KEY,
+    REQUEST_STATS_KEY,
+    SESSION_KEY,
+    STRATEGY_KEY,
+)
 from lb.choose_servers_algos.base import ServerStrategy
 from lb.backend_servers_pool.backend_server import BackendServer
 from lb.backend_servers_pool.servers_registry import BackendRegistry
@@ -19,7 +26,11 @@ from lb.middleware.request_logging import BACKEND_KEY, RequestLogging
 from lb.observers.alert_listeners import register_alert_listeners
 from lb.observers.circuit_events import circuit_event_publisher
 from lb.observers.listeners import register_default_listeners
-from lb.aws.factory import create_alert_sink
+from lb.aws.factory import create_alert_sink, create_metrics_sink
+from lb.aws.sinks import MetricsSink, NoOpMetricsSink
+from lb.metrics.publisher import metrics_publisher_context
+from lb.metrics.request_stats import RequestStats
+from lb.middleware.request_metrics import RequestMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -149,17 +160,26 @@ async def client_session(app: web.Application):
 
 
 def create_app(
-    backends: BackendRegistry, strategies: ServerStrategy, event_publisher: EventPublisher
+    backends: BackendRegistry,
+    strategies: ServerStrategy,
+    event_publisher: EventPublisher,
+    metrics_sink: MetricsSink | None = None,
 ) -> web.Application:
     app = web.Application()
+    request_stats = RequestStats()
     app[BACKENDS_KEY] = backends
     app[STRATEGY_KEY] = strategies
     app[EVENT_PUBLISHER_KEY] = event_publisher
+    app[REQUEST_STATS_KEY] = request_stats
+    app[METRICS_SINK_KEY] = metrics_sink or NoOpMetricsSink()
     app.cleanup_ctx.append(client_session)
     app.cleanup_ctx.append(health_check_context)  # needs app[SESSION_KEY], so it comes second
+    app.cleanup_ctx.append(metrics_publisher_context)
     app.cleanup_ctx.append(admin_server_context)
-    # First in the list is outermost, so logging also sees the 503s from MaxInFlight.
-    handler = build_chain(proxy, [RequestLogging(), MaxInFlight(config.MAX_IN_FLIGHT)])
+    # First in the list is outermost, so logging and metrics also see the 503s from MaxInFlight.
+    handler = build_chain(
+        proxy, [RequestLogging(), RequestMetrics(request_stats), MaxInFlight(config.MAX_IN_FLIGHT)]
+    )
     app.router.add_route("*", "/{tail:.*}", handler)
     return app
 
@@ -173,6 +193,11 @@ if __name__ == "__main__":
         config.BACKENDS, on_circuit_change=circuit_event_publisher(event_publisher)
     )
     web.run_app(
-        create_app(backend_registry, create_server_strategy(config.ALGORITHM), event_publisher),
+        create_app(
+            backend_registry,
+            create_server_strategy(config.ALGORITHM),
+            event_publisher,
+            create_metrics_sink(),
+        ),
         port=config.PORT,
     )
